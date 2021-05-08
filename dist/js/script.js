@@ -130,7 +130,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }); // Timer
 
-  const deadline = '2021-03-19';
+  const deadline = '2021-05-19';
 
   function getTimerRemaining(endtime) {
     const t = Date.parse(endtime) - Date.parse(new Date()),
@@ -185,7 +185,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const modalTrigger = document.querySelectorAll('[data-modal]');
   const modal = document.querySelector('.modal');
-  const modalClose = document.querySelector('[data-close]');
 
   function openModal() {
     modal.classList.remove('hide');
@@ -208,9 +207,8 @@ window.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = '';
   }
 
-  modalClose.addEventListener('click', closeModal);
   modal.addEventListener('click', e => {
-    if (e.target === modal) {
+    if (e.target === modal || e.target.getAttribute('data-close') == '') {
       closeModal();
     }
   });
@@ -218,7 +216,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.code === 'Escape' && modal.classList.contains('show')) {
       closeModal();
     }
-  }); // const moodalTimerId = setTimeout(openModal, 5000);
+  });
+  const moodalTimerId = setTimeout(openModal, 50000);
 
   function showModalByScroll() {
     if (window.pageYOffset + document.documentElement.clientHeight >= document.documentElement.scrollHeight) {
@@ -274,41 +273,336 @@ window.addEventListener('DOMContentLoaded', () => {
 
   }
 
-  const cards = new MenuCard("img/tabs/vegy.jpg", "vegy", 'Меню "Фитнес"', 'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!', 9, '.menu .container', 'menu__item').render(); //Forms
+  const getResource = async url => {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error(`Could not fetch ${url}, status: ${res.status}`);
+    }
+
+    return await res.json();
+  };
+
+  getResource('http://localhost:3000/menu').then(data => {
+    data.forEach(({
+      img,
+      altimg,
+      title,
+      descr,
+      price
+    }) => {
+      new MenuCard(img, altimg, title, descr, price, '.menu .container').render();
+    });
+  }); // Метод средней "тяжести"
+  // getResource('http://localhost:3000/menu')
+  //     .then(data => createCard(data));
+  // function createCard(data) {
+  //     data.forEach(({
+  //         img,
+  //         altimg,
+  //         title,
+  //         descr,
+  //         price
+  //     }) => {
+  //         const element = document.createElement('div');
+  //         element.classList.add('menu__item');
+  //         element.innerHTML = `
+  //         <img src=${img} alt=${altimg}>
+  //         <h3 class="menu__item-subtitle">${title}</h3>
+  //         <div class="menu__item-descr">${descr}</div>
+  //         <div class="menu__item-divider"></div>
+  //         <div class="menu__item-price">
+  //             <div class="menu__item-cost">Цена:</div>
+  //             <div class="menu__item-total"><span>${price}</span> грн/день</div>
+  //         </div>
+  //         `;
+  //         document.querySelector('.menu .container').append(element);
+  //     });
+  // }
+  // const cards = new MenuCard(
+  //     "img/tabs/vegy.jpg",
+  //     "vegy",
+  //     'Меню "Фитнес"',
+  //     'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!',
+  //     9,
+  //     '.menu .container',
+  //     'menu__item'
+  // ).render();
+  //Forms
 
   const forms = document.querySelectorAll('form');
   const message = {
-    loading: 'Загрузка',
+    loading: 'img/form/spinner.svg',
     success: 'Спасибо, cскоро мы с вами свяжемся',
     failure: 'Что-то пошло не так'
   };
   forms.forEach(item => {
-    postData(item);
-  });
+    bindPostData(item);
+  }); // Функция postData настраивает запрос на сервер, получает ответ и трансформирует его в json
 
-  function postData(form) {
+  const postData = async (url, data) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        "content-type": 'application/json'
+      },
+      body: data
+    });
+    return await res.json();
+  };
+
+  function bindPostData(form) {
     form.addEventListener('submit', e => {
       e.preventDefault(); //Отменяем стандартное поведение браузера
 
-      const statusMessage = document.createElement('div');
-      statusMessage.classList.add('status');
-      statusMessage.textContent = message.loading;
-      form.append(statusMessage);
-      const request = new XMLHttpRequest();
-      request.open('POST', "server-php");
-      request.setRequestHeader('Content-type', 'multipart/form-data');
-      const formData = new FormData(form);
-      request.send(formData);
-      request.addEventListener('load', () => {
-        if (request.status === 200) {
-          console.log(request.response);
-          statusMessage.textContent = message.success;
-        } else {
-          statusMessage.textContent = message.failure;
-        }
+      const statusMessage = document.createElement('img');
+      statusMessage.src = message.loading;
+      statusMessage.style.cssText = `
+                display:block;
+                margin: 0 auto;
+            `; // Важно!!! Когда используется объект XMLHttpRequest заголовок добавлять не нужно, он устанавливается автоматически!!! Но если используется json передача данных, то заголоваок обязателен!
+
+      const formData = new FormData(form); // const object = {}
+      // formData.forEach(function (value, key) {
+      //     object[key] = value;
+      // });
+
+      const json = JSON.stringify(Object.fromEntries(formData.entries())); // request.addEventListener('load', () => {
+      //     if (request.status === 200) {
+      //         console.log(request.response);
+      //         showThanksModal(message.success);
+      //         form.reset();
+      //         statusMessage.remove();
+      //     } else {
+      //         showThanksModal(message.failure);
+      //     }
+      // });
+
+      postData('http://localhost:3000/requests', json).then(data => {
+        console.log(data);
+        showThanksModal(message.success);
+        statusMessage.remove();
+      }).catch(() => {
+        showThanksModal(message.failure);
+      }).finally(() => {
+        form.reset();
       });
     });
+  } // Красивое уведомление пользователя
+
+
+  function showThanksModal(message) {
+    const prevModalDialog = document.querySelector('.modal__dialog');
+    prevModalDialog.classList.add('hide');
+    openModal();
+    const thanksModal = document.createElement('div');
+    thanksModal.classList.add('modal__dialog'); // Формирую верстку
+
+    thanksModal.innerHTML = `
+            <div class="modal__content">
+                <div class-"modal__close" data-close>×</div>
+                <div class="modal__title">${message}</div>
+            </div>
+        `;
+    document.querySelector('.modal').append(thanksModal);
+    setTimeout(() => {
+      thanksModal.remove();
+      prevModalDialog.classList.add('show');
+      prevModalDialog.classList.remove('hide');
+      closeModal();
+    }, 4000);
+  } // // Fetch API
+  // fetch('https://jsonplaceholder.typicode.com/posts', {
+  //     method:'POST',
+  //     body: JSON.stringify({name:'Alex'}),
+  //     headers: {
+  //         'content-type': 'application/json'
+  //     }
+  // })
+  //     .then(response => response.json())
+  // .then(json => console.log(json))
+  // Slider
+
+
+  const slides = document.querySelectorAll('.offer__slide');
+  const slider = document.querySelector('.offer__slider');
+  const prev = document.querySelector('.offer__slider-prev');
+  const next = document.querySelector('.offer__slider-next');
+  const total = document.querySelector('#total');
+  const current = document.querySelector('#current');
+  const slidesWrapper = document.querySelector('.offer__slider-wrapper');
+  const slidesField = document.querySelector('.offer__slider-inner');
+  const width = window.getComputedStyle(slidesWrapper).width;
+  let slideIndex = 1;
+  let offset = 0;
+
+  if (slides.length < 10) {
+    total.textContent = `0${slides.length}`;
+    current.textContent = `0${slideIndex}`;
+  } else {
+    total.textContent = slides.length;
+    current.textContent = slideIndex;
   }
+
+  ;
+  slidesField.style.width = 100 * slides.length + '%';
+  slidesField.style.display = 'flex';
+  slidesField.style.transition = 'all .5s';
+  slidesWrapper.style.overflow = 'hidden';
+  slides.forEach(slide => {
+    slide.style.width = width;
+  });
+  slider.style.position = 'relative';
+  const indicators = document.createElement('ol');
+  const dots = [];
+  indicators.classList.add('carousel-indicators');
+  indicators.style.cssText = `
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 15;
+        display: flex;
+        justify-content: center;
+        margin-right: 15%;
+        margin-left: 15%;
+        list-style: none;
+    `;
+  slider.append(indicators);
+
+  for (let i = 0; i < slides.length; i++) {
+    const dot = document.createElement('li');
+    dot.setAttribute('data-slide-to', i + 1);
+    dot.style.cssText = `
+            box-sizing: content-box;
+            flex: 0 1 auto;
+            width: 30px;
+            height: 6px;
+            margin-right: 3px;
+            margin-left: 3px;
+            cursor: pointer;
+            background-color: #fff;
+            background-clip: padding-box;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            opacity: .5;
+            transition: opacity .6s ease;
+        `;
+
+    if (i == 0) {
+      dot.style.opacity = 1;
+    }
+
+    ;
+    indicators.append(dot);
+    dots.push(dot);
+  }
+
+  ; // Вся фишка в работе с шириной слайда
+
+  next.addEventListener('click', () => {
+    if (offset == +width.slice(0, width.length - 2) * (slides.length - 1)) {
+      offset = 0;
+    } else {
+      offset += +width.slice(0, width.length - 2);
+    }
+
+    slidesField.style.transform = `translateX(-${offset}px)`;
+
+    if (slideIndex == slides.length) {
+      slideIndex = 1;
+    } else {
+      slideIndex++;
+    }
+
+    if (slides.length < 10) {
+      current.textContent = `0${slideIndex}`;
+    } else {
+      current.textContent = slideIndex;
+    }
+
+    dots.forEach(dot => {
+      dot.style.opacity = '.5';
+    });
+    dots[slideIndex - 1].style.opacity = 1;
+  });
+  prev.addEventListener('click', () => {
+    if (offset == 0) {
+      offset = +width.slice(0, width.length - 2) * (slides.length - 1);
+    } else {
+      offset -= +width.slice(0, width.length - 2);
+    }
+
+    slidesField.style.transform = `translateX(-${offset}px)`;
+
+    if (slideIndex == 1) {
+      slideIndex = slides.length;
+    } else {
+      slideIndex--;
+    }
+
+    if (slides.length < 10) {
+      current.textContent = `0${slideIndex}`;
+    } else {
+      current.textContent = slideIndex;
+    }
+
+    dots.forEach(dot => {
+      dot.style.opacity = '.5';
+    });
+    dots[slideIndex - 1].style.opacity = 1;
+  });
+  dots.forEach(dot => {
+    dot.addEventListener('click', e => {
+      const slideTo = e.target.getAttribute('data-slide-to');
+      slideIndex = slideTo;
+      offset = +width.slice(0, width.length - 2) * (slideTo - 1);
+      slidesField.style.transform = `translateX(-${offset}px)`;
+
+      if (slides.length < 10) {
+        current.textContent = `0${slideIndex}`;
+      } else {
+        current.textContent = slideIndex;
+      }
+
+      dots.forEach(dot => {
+        dot.style.opacity = '.5';
+      });
+      dots[slideIndex - 1].style.opacity = 1;
+    });
+  }); // Вариант слайдера без карусели
+  // showSlides(slideIndex);
+  // if(slides.length <10) {
+  //     total.textContent = `0${slides.length}`;
+  // } else {
+  //     total.textContent = slides.length;
+  // }
+  // function showSlides(n) {
+  //     if (n > slides.length) {
+  //         slideIndex = 1;
+  //     }
+  //     if (n < 1) {
+  //         slideIndex = slides.length;
+  //     }
+  //     slides.forEach(item => {
+  //         item.style.display = 'none'
+  //     });
+  //     slides[slideIndex - 1].style.display = 'block';
+  //     if(slides.length <10) {
+  //         current.textContent = `0${slideIndex}`;
+  //     } else {
+  //         current.textContent = slideIndex;
+  //     }
+  // }
+  // function plusSlides(n) {
+  //     showSlides(slideIndex += n);
+  // }
+  // prev.addEventListener('click', () => {
+  //     plusSlides(-1);
+  // });
+  // next.addEventListener('click', () => {
+  //     plusSlides(1);
+  // });
 });
 
 /***/ })
